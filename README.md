@@ -51,7 +51,7 @@ Upload file to VirusTotal and Scan:
 
 Upload all files in a directory (including subdirectory) to VirusTotal and Scan:
 ```bash 
-./vts.py -k YOUR_API_KEY -f ./file.exe -o ./output.csv -u
+./vts.py -k YOUR_API_KEY -f ./ -o ./output.csv -u
 ```
 
 ## Contributing
