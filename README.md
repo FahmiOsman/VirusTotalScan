@@ -10,7 +10,7 @@ Bulk scan and upload files/hashes to [VirusTotal](www.virustotal.com).
 
 ## Usage
 
-```python
+```bash
 vts.py [-h] -k API -f FILE [-u] [-d DELAY] -o OUTPUTFILE [-r MAXRETRY]
 
 optional arguments:
