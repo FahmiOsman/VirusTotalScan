@@ -35,22 +35,22 @@ optional arguments:
 ## Examples
 
 Scanning single file (hash only):
-```python 
+```bash 
 ./vts.py -k YOUR_API_KEY -f ./file.exe -o ./output.csv 
 ```
 
 Scanning all files (hashes only) in a directory (including subdirectory):
-```python 
+```bash 
 ./vts.py -k YOUR_API_KEY -f ./ -o ./output.csv 
 ```
 
 Upload file to VirusTotal and Scan:
-```python 
+```bash 
 ./vts.py -k YOUR_API_KEY -f ./file.exe -o ./output.csv -u
 ```
 
 Upload all files in a directory (including subdirectory) to VirusTotal and Scan:
-```python 
+```bash 
 ./vts.py -k YOUR_API_KEY -f ./file.exe -o ./output.csv -u
 ```
 
