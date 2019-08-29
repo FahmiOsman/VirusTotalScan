@@ -97,36 +97,34 @@ def uploadFile(apikey, f,maxRetry,delay):
 
 def main(args):	
 	filenames = [args["file"]]
+	excludedfiles = args["excludedfiles"]
 	apikey = args["api"]
 	upload = args["upload"]
+	uploadonly = args["uploadonly"]
 	delay = args["delay"]
 	output = args["outputfile"]
 	maxRetry = args["maxretry"]
+	excludedfileslist = []
 	
 	#list filenames in directories (including subdirectories)
 	if os.path.isdir(filenames[0]): filenames = [os.path.join(r,file) for r,d,f in os.walk(filenames[0]) for file in sorted(f)]
 	
-	#Get already processed file
-	file_continue = False
-	isCsvExists = os.path.isfile(output)
-	numRow = 1
-	if isCsvExists:
-		csv_file = open(output)
-		csv_reader = csv.reader(csv_file,delimiter=',')
-		filelist_sha256 = []
-		for csv_row in csv_reader:
-			filelist_sha256.append(csv_row[2])
-			numRow += 1
-		csv_file.close()
-		print(output + " already exists, files already in the list will not be processed")
-		file_continue = True	
+	#Get excluded files list
+	if excludedfiles and os.path.isfile(excludedfiles):
+		print("Checking for excluded list in " + excludedfiles + ". Files in the list will not be processed.")
+		excludedlist = open(excludedfiles, 'r')
+		for excludedfile in excludedlist.read().splitlines(): 
+			excludedfileslist.append(excludedfile)
+		excludedlist.close()
 
+
+	isOutputExists = os.path.isfile(output)
 	output_file = open(output,'a')
 	output_writer = csv.writer(output_file,delimiter=',',quotechar='"',quoting=csv.QUOTE_MINIMAL)	
 
 	#add header if output file has not been created before
-	if not(isCsvExists):
-		output_writer.writerow(['No.','Filename','SHA256','Permalink','Detection','Total AV','Scans'])	
+	if not(isOutputExists):
+		output_writer.writerow(['Progress','Filename','SHA256','Permalink','Detection','Total AV','Scans'])	
 		
 	
 	totalFiles = len(filenames)
@@ -134,19 +132,17 @@ def main(args):
 		f = open(filename,'rb')	
 		fname = os.path.basename(filename)
 		filehash = sha256(filename)
-		if file_continue:
-			if filehash in filelist_sha256:
-				print(fname + " is already in the list and will not be processed")
-				filelist_sha256.remove(filehash) #remove hash from the list to reduce search space
-				continue
-			
-			
+
 		print("File "+str(fileIdx+1)+"/"+str(totalFiles) + ": "+ str(fname))
+
+		if fname in excludedfileslist:
+			print("   "+ fname + " is in the excluded list and will not be processed")
+			continue
+
 		
-		output_row = [str(numRow),fname]
-		numRow += 1
-		
-		if upload: 
+		output_row = [str(fileIdx+1)+"/"+str(totalFiles) ,fname]
+
+		if upload or uploadonly: 
 			uploadResult = uploadFile(apikey, f,maxRetry,delay)
 			if uploadResult["response_code"] == 1:
 				filehash = uploadResult['sha256']
@@ -157,18 +153,19 @@ def main(args):
 				f.close()
 				continue
 
-		scanResult = scanHash(apikey,filehash,maxRetry,delay)
-		if scanResult["response_code"] == 1:
-			output_row.append(scanResult['sha256'])
-			output_row.append(scanResult['permalink'])
-			output_row.append(scanResult['positives'])
-			output_row.append(scanResult['total'])
-			output_row.append(scanResult['scans'])
-		elif scanResult["response_code"] == 0: 
-			output_row.append("Hash not found in Virustotal. You may try to include -u in the argument to upload the file")
-		else:
-			output_row.append("Max scan retry reached..skipping file")
-			
+		if not uploadonly:
+			scanResult = scanHash(apikey,filehash,maxRetry,delay)
+			if scanResult["response_code"] == 1:
+				output_row.append(scanResult['sha256'])
+				output_row.append(scanResult['permalink'])
+				output_row.append(scanResult['positives'])
+				output_row.append(scanResult['total'])
+				output_row.append(scanResult['scans'])
+			elif scanResult["response_code"] == 0: 
+				output_row.append("Hash not found in Virustotal. You may try to include -u in the argument to upload the file")
+			else:
+				output_row.append("Max scan retry reached..skipping file")
+				
 		
 		output_writer.writerow(output_row)	
 		f.close()
@@ -176,13 +173,15 @@ def main(args):
 	output_file.close()
 
 if __name__ == '__main__':
-	version = "1.0"
+	version = "1.1"
 	
 	args = argparse.ArgumentParser()
 	
 	args.add_argument("-k", "--api", required=True, help="VirusTotal API Key")
 	args.add_argument("-f", "--file", required=True,  help="File to be scanned")
-	args.add_argument("-u", "--upload", required=False, action="store_true", help="Enable uploading file to Virustotal")
+	args.add_argument("-x", "--excludedfiles", required=False,  help="File containing list of files to be excluded (separated by newline)")
+	args.add_argument("-u", "--upload", required=False, action="store_true", help="Enable uploading file and scan to Virustotal")
+	args.add_argument("-U", "--uploadonly", required=False, action="store_true", help="Enable upload only to Virustotal")
 	args.add_argument("-d", "--delay", required=False, default=20, type=int, help="Delay in seconds after API limit reached or scan result is not ready")
 	args.add_argument("-o", "--outputfile", required=True, help="Output file in csv format. If the file already exists, hashes listed in the file will be skipped") 
 	args.add_argument("-r", "--maxretry", required=False, type=int, default=100, help="Max number of request retries to Virustotal API")
